@@ -29,7 +29,7 @@ typedef struct
 #define ALING 64
 
 typedef struct {
-    int n, m;
+    int linhas, colunas;
     double *vetor;
 }MATRIZ;
 
@@ -47,17 +47,17 @@ void multMatriz(MATRIZ *  __restrict__ C, //endereco da memoria da matriz result
      #pragma omp parallel // avisa ao compilador que o bloco dele deve ser executado de forma paralela
      {
 	#pragma omp for //abre o bloco
-        for (int j = 0; j < C->n; j++){
-            for (int i = 0; i < C->m; i++){
-                double c = 0.0f; //vai acumular a soma
-                for (int jA = 0; jA < A->m; jA++){ 
-                    int ak = j * A->m + jA;
-                    int bk = jA * B->m + i;
-                    c += A->vetor[ak] * B->vetor[bk];
+        for (int j = 0; j < C->linhas; j++){ 
+            for (int i = 0; i < C->colunas; i++){ 
+                double soma = 0.0f; //vai acumular a soma e salvar no elemento de C
+                for (int indice = 0; indice < A->colunas; indice++){ 
+                    int elementoA = j * A->colunas + indice; //qual elemento vai multiplicar pelo elemento de B
+                    int elementoB = (j * A->colunas + indice) * B->colunas + i; //qual elemento vai multiplicar pelo elemento de A
+                    soma += A->vetor[elementoA] * B->vetor[elementoB]; //A*B que dps vai somar com os outros A*B
                 }
 
-                int ck = j * C->m +  i;
-                C->vetor[ck] = c;
+                int elemento = j * C->colunas +  i;
+                C->vetor[elemento] = soma; //salva em c
             }
 
         }
@@ -83,12 +83,12 @@ int main (int ac, char **av){
 
     contaBytes  =  (double)loadBin(&A, nomeArqvA); //ve quantos bytes tem em a
     contaBytes  += (double) loadBin(&B, nomeArqvB); // ve quantos bytes tem em a e b
-    C.m = A.n;
-    C.n = B.m;
+    C.colunas = A.linhas;
+    C.linhas = B.colunas;
 
-    C.vetor = (double *) aligned_alloc(ALING, C.m *  C.n * sizeof(double)); // aloca a memoria para a matriz resultado, o tamanho é m*n e cada elemento é um double, o alinhamento é de 64 bytes
-    contaBytes  += (double) C.m *  C.n * sizeof(double); // ve quantos bytes tem em a, b e c
-    bzero(C.vetor, C.m *  C.n * sizeof(double)); // limpa o espaco q acabamos de alocar
+    C.vetor = (double *) aligned_alloc(ALING, C.colunas *  C.linhas * sizeof(double)); // aloca a memoria para a matriz resultado, o tamanho é m*n e cada elemento é um double, o alinhamento é de 64 bytes
+    contaBytes  += (double) C.colunas *  C.linhas * sizeof(double); // ve quantos bytes tem em a, b e c
+    bzero(C.vetor, C.colunas *  C.linhas * sizeof(double)); // limpa o espaco q acabamos de alocar
 
 
     elapsedtime = (double *) aligned_alloc(ALING, nThreads * sizeof(double)); //aloca a memoria para o vetor de tempo gasto por cada thread
@@ -99,7 +99,7 @@ int main (int ac, char **av){
     printf("\t   Threads: %u \n", nThreads);
     printf("\t   Memória: %lf MBytes \n", ((contaBytes) / 1048576));
 
-    multiMatriz(&C, &A, &B, nThreads);
+    multMatriz(&C, &A, &B, nThreads);
     saveBin(&C, nomeArqvC);
 
     printf("----------------------------------------------------------------\n");
@@ -123,9 +123,9 @@ size_t saveBin(MATRIZ *A, char * filename){
     FILE *ptr = fopen(filename, "wb");
     size_t bytes_written = 0, aux;
     assert(ptr != NULL);
-    aux = fwrite(&A->m, sizeof(A->m), 1, ptr); bytes_written += aux * sizeof(A->m);
-    aux = fwrite(&A->n, sizeof(A->n), 1, ptr); bytes_written += aux * sizeof(A->n);
-    aux = fwrite(A->vetor, sizeof(double), A->m * A->n, ptr); bytes_written += aux * sizeof(double);
+    aux = fwrite(&A->colunas, sizeof(A->colunas), 1, ptr); bytes_written += aux * sizeof(A->colunas);
+    aux = fwrite(&A->linhas, sizeof(A->linhas), 1, ptr); bytes_written += aux * sizeof(A->linhas);
+    aux = fwrite(A->vetor, sizeof(double), A->colunas * A->linhas, ptr); bytes_written += aux * sizeof(double);
 
     fclose(ptr);
 
@@ -138,13 +138,13 @@ size_t loadBin(MATRIZ *A, char *filename){
     size_t bytes_read = 0, aux;
     //numread = fread( list, sizeof( char ), 25, stream );
 
-    aux = fread(&A->m, sizeof(A->m), 1, ptr); bytes_read += aux * sizeof(A->m);
-    aux = fread(&A->n, sizeof(A->n), 1, ptr); bytes_read += aux * sizeof(A->n);
+    aux = fread(&A->colunas, sizeof(A->colunas), 1, ptr); bytes_read += aux * sizeof(A->colunas);
+    aux = fread(&A->linhas, sizeof(A->linhas), 1, ptr); bytes_read += aux * sizeof(A->linhas);
 
-    a = (double *) aligned_alloc(ALING,  A->m *  A->n * sizeof(double));
+    a = (double *) aligned_alloc(ALING,  A->colunas *  A->linhas * sizeof(double));
     assert(a != NULL);
 
-    aux = fread(a, sizeof(double), A->m * A->n, ptr); bytes_read += aux * sizeof(double);
+    aux = fread(a, sizeof(double), A->colunas * A->linhas, ptr); bytes_read += aux * sizeof(double);
 
     A->vetor = a;
     fclose(ptr);
