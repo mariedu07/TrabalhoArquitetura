@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<time.h>
 
 float* gerarMatriz(int tamMatriz){
     float *Matriz = malloc(tamMatriz * tamMatriz * sizeof(float));
@@ -11,7 +12,7 @@ float* gerarMatriz(int tamMatriz){
 
     for(int i = 0; i < tamMatriz; i++){
         for(int j = 0; j < tamMatriz; j++){
-            Matriz[i * tamMatriz + j] = rand() % 10;
+            Matriz[i * tamMatriz + j] = rand() %10;
         }
     }
 
@@ -33,21 +34,80 @@ void zerarMatriz(float *Matriz, int tamMatriz){
              Matriz[i * tamMatriz +j] = 0.0f;
 }
 
-void multiplicacaoMatriz(float *matrizA, float *matrizB, float *matrizC, int tamMatriz){
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+
+float* multiplicacaoMatriz(float* matrizA, float* matrizB, int tamMatriz){
+
+    float* resultado = malloc(tamMatriz * tamMatriz * sizeof(float));
+
     for (int i = 0; i<tamMatriz; i++){
         for(int j = 0; j<tamMatriz; j++){
-            matrizC[i*tamMatriz + j] = 0.0f;
+            resultado[i*tamMatriz + j] = 0.0f;
 
             for(int k = 0; k < tamMatriz; k++){
-                matrizC[i*tamMatriz+j] += matrizA[i*tamMatriz + k] * matrizB[k*tamMatriz + j];
+                resultado[i*tamMatriz+j] += matrizA[i*tamMatriz + k] * matrizB[k*tamMatriz + j];
             }
         }
     }
+    return resultado;
+}
+
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+
+float* transporMatriz(float *Matriz, int tamMatriz){
+    float *Transposta = malloc(tamMatriz * tamMatriz * sizeof(float));
+
+    for(int i = 0; i < tamMatriz; i++){
+        for(int j = 0; j < tamMatriz; j++){
+            Transposta[i * tamMatriz + j] = Matriz[j * tamMatriz + i];
+        }
+    }
+    free(Matriz);
+    return Transposta;
+
+}
+
+float* otimizacao1(float *matrizA, float *matrizB, int tamMatriz){ //aproveita a cache pq ao inves de varrer a linha i de a e a coluna j de b, varre a linha i de a e a coluna k de b, fixa uma linha de b e vai andando os elementos, ou seja, aproveita a cache
+
+    float* transB = transporMatriz(matrizB, tamMatriz);
+    float* matrizC = malloc(tamMatriz * tamMatriz * sizeof(float));
+    zerarMatriz(matrizC, tamMatriz);
+
+    for (int i = 0; i<tamMatriz; i++){
+        for(int j = 0; j<tamMatriz;j++){
+            float soma = 0.0;
+            
+            for(int k = 0; k < tamMatriz; k++){ 
+                soma += matrizA[i * tamMatriz + k] * transB[j * tamMatriz + k];
+            }
+
+            matrizC[i * tamMatriz + j] = soma;
+        }
+    }
+    free(transB);
+    return matrizC;
+}
+
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+
+float* otimizacao1(float *matrizA, float *matrizB, int tamMatriz){ //aproveita a cache pq ao inves de varrer a linha i de a e a coluna j de b, varre a linha i de a e a coluna k de b, fixa uma linha de b e vai andando os elementos, ou seja, aproveita a cache
+
+    float* resultado = malloc(tamMatriz * tamMatriz * sizeof(float));
+    
 }
 
 int main(){
+
+    srandom(time(NULL)); //pra aleatorizar os numeros
+
     int tamMatriz;
-    float *matrizA, *matrizB;
+    float *matrizA, *matrizB, *matrizC;
     printf("Ordem das matrizes: ");
     
     scanf("%d",&tamMatriz);
@@ -59,7 +119,17 @@ int main(){
 
     printf("\n\nMatriz B gerada!\n");
     imprimirMatriz(matrizB, tamMatriz);
+
+    matrizC = otimizacao1(matrizA, matrizB, tamMatriz);
+
+    printf("\n\nMatriz C gerada!\n");
+    imprimirMatriz(matrizC, tamMatriz);
+
+    free(matrizA);
+    free(matrizB);
+    free(matrizC);
+
 }
 
-//otimizacao transposta (recebe matriz A, matriz B transposta, e c q guarda, e tam matriz), faz um codigo pra transpor uma matriz
+
 //otimizacao omp
