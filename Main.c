@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
+#include<omp.h>
 
 float* gerarMatriz(int tamMatriz){
     float *Matriz = malloc(tamMatriz * tamMatriz * sizeof(float));
@@ -66,7 +67,7 @@ float* transporMatriz(float *Matriz, int tamMatriz){
             Transposta[i * tamMatriz + j] = Matriz[j * tamMatriz + i];
         }
     }
-    free(Matriz);
+    
     return Transposta;
 
 }
@@ -91,16 +92,35 @@ float* otimizacao1(float *matrizA, float *matrizB, int tamMatriz){ //aproveita a
     free(transB);
     return matrizC;
 }
-
 /// ---------------------------------------------------------------------------------- ///
 /// ---------------------------------------------------------------------------------- ///
 /// ---------------------------------------------------------------------------------- ///
 
-float* otimizacao1(float *matrizA, float *matrizB, int tamMatriz){ //aproveita a cache pq ao inves de varrer a linha i de a e a coluna j de b, varre a linha i de a e a coluna k de b, fixa uma linha de b e vai andando os elementos, ou seja, aproveita a cache
+float* otimizacao2(float* matrizA, float* matrizB, int tamMatriz){ //utiliza a biblioteca omp para fazer as threads dividirem o trabalho 
 
     float* resultado = malloc(tamMatriz * tamMatriz * sizeof(float));
+
+    omp_set_num_threads(6);
+    #pragma omp parallel for collapse(2) //#pragma omp parallel faz as threads para os cores executarem, mas cada um executa tudo, entao adicionamos o for, pq ai cada um fica com um pedaco (uma thread) e, por padrao, como eu nao disse quantos cores usar, ele divide as threads entre o maximo de cores que o computador tiver
+    //collapse(2) ao inves de er duas iteracoes, junta a i e a j em uma com i*j pedacinhos/elementos
+        for (int i = 0; i<tamMatriz; i++){
+            for(int j = 0; j<tamMatriz; j++){
+                resultado[i*tamMatriz + j] = 0.0f;
+
+                for(int k = 0; k < tamMatriz; k++){
+                    resultado[i*tamMatriz+j] += matrizA[i*tamMatriz + k] * matrizB[k*tamMatriz + j];
+                }
+            }
+        }
     
+
+    return resultado;
 }
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+/// ---------------------------------------------------------------------------------- ///
+
+//otimizacao tiling
 
 int main(){
 
@@ -110,20 +130,23 @@ int main(){
     float *matrizA, *matrizB, *matrizC;
     printf("Ordem das matrizes: ");
     
-    scanf("%d",&tamMatriz);
+    if(scanf("%d",&tamMatriz) != 1){
+        printf("Erro: entrada invalida");
+        return 1;
+    }
     matrizA = gerarMatriz(tamMatriz);
     matrizB = gerarMatriz(tamMatriz);
 
     printf("Matriz A gerada!\n");
-    imprimirMatriz(matrizA, tamMatriz);
+    //imprimirMatriz(matrizA, tamMatriz);
 
     printf("\n\nMatriz B gerada!\n");
-    imprimirMatriz(matrizB, tamMatriz);
+    //imprimirMatriz(matrizB, tamMatriz);
 
-    matrizC = otimizacao1(matrizA, matrizB, tamMatriz);
+    matrizC = otimizacao2(matrizA, matrizB, tamMatriz);
 
-    printf("\n\nMatriz C gerada!\n");
-    imprimirMatriz(matrizC, tamMatriz);
+    printf("\n\nMatriz resultado gerada!\n");
+    //imprimirMatriz(matrizC, tamMatriz);
 
     free(matrizA);
     free(matrizB);
@@ -131,5 +154,3 @@ int main(){
 
 }
 
-
-//otimizacao omp
